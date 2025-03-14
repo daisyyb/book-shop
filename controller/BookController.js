@@ -24,16 +24,17 @@ const allBooks = (req, res) => {
     // itemsPerPage 유효성 검사 (1 이상 100 이하로 제한)
     itemsPerPage = Math.min(Math.max(parseInt(itemsPerPage), 1), 100);
 
-    let sql = "SELECT * FROM books";
+    let sql = "SELECT *,(SELECT COUNT(*) FROM likes WHERE liked_book_id=books.id) AS likes FROM books";
     let params = [];
 
     // 페이지네이션 설정
     const offset = (currentPage - 1) * itemsPerPage;
 
+    // 카테고리 필터링 처리
     if (category_id) {
         sql += " WHERE category_id = ?";
         params.push(category_id);
-        
+
         // news가 존재하면 한 달 내 출판된 책만 조회 (pub_date 사용)
         if (news) {
             sql += " AND pub_date >= DATE_SUB(NOW(), INTERVAL 1 MONTH)";
@@ -47,14 +48,25 @@ const allBooks = (req, res) => {
     sql += " ORDER BY pub_date DESC LIMIT ? OFFSET ?";
     params.push(parseInt(itemsPerPage), parseInt(offset));
 
+    // 쿼리 실행
     executeQuery(res, sql, params);
 };
 
-// 도서 상세 조회
+// 도서 상세 조회 (좋아요 수 및 내가 좋아요를 했는지 여부 포함)
 const booksDetail = (req, res) => {
     let { id } = req.params;
-    let sql = `SELECT * FROM books LEFT JOIN category ON books.category_id = category.id WHERE books.id = ?`;
-    executeQuery(res, sql, [id]);
+    let { user_id } = req.body;  // user_id를 요청 본문에서 받기
+
+    let sql = `
+        SELECT books.*, 
+            (SELECT COUNT(*) FROM likes WHERE liked_book_id = books.id) AS likes,
+            EXISTS (SELECT 1 FROM likes WHERE liked_book_id = books.id AND user_id = ?) AS liked
+        FROM books 
+        LEFT JOIN category ON books.category_id = category.id
+        WHERE books.id = ?
+    `;
+
+    executeQuery(res, sql, [user_id, id]);
 };
 
 module.exports = {

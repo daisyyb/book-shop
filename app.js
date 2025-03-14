@@ -10,6 +10,14 @@ dotenv.config();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// 요청 로그 미들웨어를 라우터 등록 전에 위치시키기
+app.use((req, res, next) => {
+    // URL에서 불필요한 공백 및 줄 바꿈 문자 제거
+    req.url = req.url.replace(/\s+/g, ''); // 공백 문자 제거
+    console.log(`📌 요청: ${req.method} ${req.url}`);
+    next();  // 요청이 라우터로 넘어가도록 해야 함
+});
+
 // 라우터 불러오기
 const userRouter = require('./routes/users');
 const bookRouter = require('./routes/books');
